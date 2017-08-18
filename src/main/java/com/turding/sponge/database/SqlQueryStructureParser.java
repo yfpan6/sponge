@@ -3,12 +3,7 @@ package com.turding.sponge.database;
 import com.turding.sponge.core.*;
 import com.turding.sponge.util.StringUtil;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -40,6 +35,7 @@ public final class SqlQueryStructureParser {
         this.parseEntityClass()
             .parseSelectFields()
             .parseCondition()
+            .parseGroupBy()
             .parseOrderBy()
             .parsePagination();
         return parsedSqlQueryStructureParser;
@@ -59,13 +55,19 @@ public final class SqlQueryStructureParser {
             return this;
         }
 
-        Optional<QueryField[]> selectFields = parseTarget.queryFields();
-        if (selectFields.isPresent()) {
-            result.selectFieldList = SqlSelectFieldsParser.of(entity, selectFields.get())
-                    .parse().result().getEntityFieldList();
+        Optional<QueryField[]> queryFields = parseTarget.setQueryFields();
+        if (queryFields.isPresent()) {
+            SqlQueryFieldsParser.Result parserdResult = SqlQueryFieldsParser.of(entity,queryFields.get())
+                    .parse().result();
+            result.selectFields = parserdResult.getSelectFields();
+            result.entityFields = parserdResult.getEntityFields();
         } else {
-            result.selectFieldList = entity.getFieldList();
-            result.selectFieldList = result.selectFieldList.stream()
+            List<Entity.Field> entityFields = entity.getFields();
+            result.selectFields = entityFields.stream()
+                    .filter(field -> field.isSearchable())
+                    .map(Entity.Field::getStoreName)
+                    .collect(Collectors.toList());
+            result.entityFields = entityFields.stream()
                     .filter(field -> field.isSearchable())
                     .collect(Collectors.toList());
         }
@@ -76,12 +78,25 @@ public final class SqlQueryStructureParser {
         if (!validParser) {
             return this;
         }
-        Optional<CombinedExpression> condition = parseTarget.filterCondition();
+        Optional<CombinedExpression> condition = parseTarget.filterExp();
         if (condition.isPresent()) {
-            SqlExpressionParser.Result scpResult = SqlExpressionParser.of(condition.get(), entity)
+            SqlExpressionParser.Result scpResult = SqlExpressionParser.of(entity, condition.get())
                     .parse().result();
             result.wherePrepareSql = scpResult.getPrepareSql();
-            result.wherePrepareValueList = scpResult.getPrepareValueList();
+            result.wherePrepareValues = scpResult.getPrepareValues();
+        }
+        return this;
+    }
+
+    private SqlQueryStructureParser parseGroupBy() {
+        if (!validParser) {
+            return this;
+        }
+
+        Optional<GroupBy> groupBy = parseTarget.groupBy();
+        if (groupBy.isPresent()) {
+            result.groupBySql = SqlGroupByParser.of(entity, groupBy.get())
+                    .parse().result().getGroupBySql();
         }
         return this;
     }
@@ -90,9 +105,9 @@ public final class SqlQueryStructureParser {
         if (!validParser) {
             return this;
         }
-        Optional<OrderBy[]> orderByList = parseTarget.orders();
+        Optional<OrderBy[]> orderByList = parseTarget.order();
         if (orderByList.isPresent()) {
-            result.orderBySql = SqlOrderByParser.of(orderByList.get(), entity)
+            result.orderBySql = SqlOrderByParser.of(entity, orderByList.get())
                     .parse()
                     .result()
                     .getOrderBySql();
@@ -122,15 +137,15 @@ public final class SqlQueryStructureParser {
     public static final class Result {
 
         private String tableName;
-        private List<Entity.Field> selectFieldList;
+        private List<String> selectFields;
+        private List<Entity.Field> entityFields;
         private String wherePrepareSql;
-        private List<Object> wherePrepareValueList;
+        private List<Object> wherePrepareValues;
+        private String groupBySql;
         private String orderBySql;
         private String paginationPrepareSql;
         private Object[] paginationPrepareValues;
-
         private String prepareSql;
-
         private Object[] prepareValues;
 
         public String prepareSql() {
@@ -141,61 +156,31 @@ public final class SqlQueryStructureParser {
             return prepareValues;
         }
 
-        public List<Entity.Field> selectFieldList() {
-            return selectFieldList;
+        public List<String> selectFields() {
+            return selectFields;
         }
 
-        public String sql() {
-            int startPos = prepareSql.indexOf('?');
-            if (startPos == -1) {
-                return prepareSql;
-            }
+        public List<Entity.Field> entityFields() {
+            return entityFields;
+        }
 
-            StringBuilder sql = new StringBuilder();
-            char c;
-            Object value;
-            for (int i = 0, pos = 0, len = prepareSql.length(); i < len; i++) {
-                c = prepareSql.charAt(i);
-                if ('?' == c) {
-                    value = prepareValues[pos];
-                    pos++;
-                    if (value == null
-                            || value instanceof Integer
-                            || value instanceof Double
-                            || value instanceof Long
-                            || value instanceof Byte
-                            || value instanceof Float
-                            || value instanceof Short) {
-                        sql.append(value);
-                        continue;
-                    }
-                    sql.append('\'');
-                    if (value instanceof Date) {
-                        sql.append(value);
-                    } else if (value instanceof LocalDate
-                            || value instanceof LocalDateTime) {
-                        sql.append(value);
-                    } else {
-                        sql.append(value);
-                    }
-                    sql.append('\'');
-                } else {
-                    sql.append(c);
-                }
-            }
-            return sql.toString();
+        public String rawSql() {
+            return SqlUtil.toRawSql(prepareSql, Arrays.asList(prepareValues));
         }
 
         private void buildPrepareSql() {
             StringBuilder prepareSql = new StringBuilder();
             prepareSql.append("SELECT ");
-            selectFieldList.forEach(field -> {
-                prepareSql.append(field.getStoreName()).append(", ");
+            selectFields.forEach(selectField -> {
+                prepareSql.append(selectField).append(", ");
             });
             prepareSql.setLength(prepareSql.length() - 2);
             prepareSql.append(" FROM ").append(tableName);
             if (!StringUtil.isBlank(wherePrepareSql)) {
                 prepareSql.append(" WHERE ").append(wherePrepareSql);
+            }
+            if (!StringUtil.isBlank(groupBySql)) {
+                prepareSql.append(' ').append(groupBySql);
             }
             if (!StringUtil.isBlank(orderBySql)) {
                 prepareSql.append(' ').append(orderBySql);
@@ -209,8 +194,8 @@ public final class SqlQueryStructureParser {
 
         private void buildPrepareValues() {
             List<Object> pvs = new ArrayList<>();
-            if (wherePrepareValueList != null) {
-                pvs.addAll(wherePrepareValueList);
+            if (wherePrepareValues != null) {
+                pvs.addAll(wherePrepareValues);
             }
             if (paginationPrepareValues != null) {
                 pvs.add(paginationPrepareValues[0]);

@@ -48,8 +48,7 @@ public class AppTest
                 .when(Exps.val("true")).then(Exps.val(Time.valueOf("18:00:01")))
                 .els(Exps.val(new Date()))
                 .end());
-        SqlExpressionParser.Result result = SqlExpressionParser.of(expression,
-                entityEntity)
+        SqlExpressionParser.Result result = SqlExpressionParser.of(entityEntity, expression)
                 .parse()
                 .result();
         System.out.println(result.getRawSql());

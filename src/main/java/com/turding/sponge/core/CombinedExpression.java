@@ -12,11 +12,11 @@ import java.util.List;
  */
 public class CombinedExpression implements ComposableExpression {
 
-    private List<Expression> partList;
+    private List<Expression> parts;
 
     private CombinedExpression(ComposableExpression expression) {
-        partList = new LinkedList<>();
-        partList.add(expression);
+        parts = new LinkedList<>();
+        parts.add(expression);
     }
 
     /**
@@ -45,32 +45,32 @@ public class CombinedExpression implements ComposableExpression {
     }
 
     public Expression[] getParts() {
-        return partList.toArray(new Expression[0]);
+        return parts.toArray(new Expression[0]);
     }
 
     public boolean isEmpty() {
-        return partList.size() == 0;
+        return parts.size() == 0;
     }
 
     public CombinedExpression and(ComposableExpression expression) {
-        partList.add(new Expression.And(expression));
+        parts.add(new Expression.And(expression));
         return this;
     }
 
     public CombinedExpression or(ComposableExpression expression) {
-        partList.add(new Expression.Or(expression));
+        parts.add(new Expression.Or(expression));
         return this;
     }
 
     @Deprecated
     public CombinedExpression and(String fieldName, String operation, Object value) {
-        partList.add(new Expression.And(new Expression.Simple(fieldName, operation, value)));
+        parts.add(new Expression.And(new Expression.Simple(fieldName, operation, value)));
         return this;
     }
 
     @Deprecated
     public CombinedExpression or(String fieldName, String operation, Object value) {
-        partList.add(new Expression.Or(new Expression.Simple(fieldName, operation, value)));
+        parts.add(new Expression.Or(new Expression.Simple(fieldName, operation, value)));
         return this;
     }
 

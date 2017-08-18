@@ -14,13 +14,25 @@ import java.util.List;
 public class Database {
 
     public static List<Long> insert(DataSource dataSource, String insertSql) {
-        return executeInsert(dataSource, insertSql, null);
+        return insert(dataSource, insertSql, null);
+    }
+
+    public static List<Long> insert(Connection conn, String insertSql) {
+        return executeInsert(conn, insertSql, null);
     }
 
     public static List<Long> insert(DataSource dataSource,
                                     String prepareInsertSql,
-                                    List<Object> prepareValueList) {
-       return executeInsert(dataSource, prepareInsertSql, prepareValueList);
+                                    List<Object> prepareValues) {
+        Connection conn = null;
+        try {
+            conn = dataSource.getConnection();
+            return executeInsert(conn, prepareInsertSql, prepareValues);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            close(conn);
+        }
     }
     public static int update(DataSource dataSource,
                              String updateSql) {
@@ -29,8 +41,8 @@ public class Database {
 
     public static int update(DataSource dataSource,
                              String prepareUpdateSql,
-                             List<Object> prepareValueList) {
-        return executeUpdate(dataSource, prepareUpdateSql, prepareValueList);
+                             List<Object> prepareValues) {
+        return executeUpdate(dataSource, prepareUpdateSql, prepareValues);
     }
 
     public static int delete(DataSource dataSource,
@@ -41,8 +53,8 @@ public class Database {
 
     public static int delete(DataSource dataSource,
                              String prepareDeleteSql,
-                             List<Object> prepareValueList) {
-        return executeUpdate(dataSource, prepareDeleteSql, prepareValueList);
+                             List<Object> prepareValues) {
+        return executeUpdate(dataSource, prepareDeleteSql, prepareValues);
     }
 
     public static <T> List<T> select(DataSource dataSource,
@@ -52,9 +64,9 @@ public class Database {
     }
     public static <T> List<T> select(DataSource dataSource,
                               String prepareSelectSql,
-                              List<Object> prepareValueList,
+                              List<Object> prepareValues,
                               ResultSetCallback<T> callback) {
-        debugSql(prepareSelectSql, prepareValueList);
+        debugSql(prepareSelectSql, prepareValues);
 
         Connection conn = null;
         PreparedStatement stm = null;
@@ -62,10 +74,10 @@ public class Database {
         try {
             conn = dataSource.getConnection();
             stm = conn.prepareStatement(prepareSelectSql);
-            if (prepareValueList != null) {
-                int size = prepareValueList.size();
+            if (prepareValues != null) {
+                int size = prepareValues.size();
                 for (int i = 0; i < size; i++) {
-                    stm.setObject((i + 1), prepareValueList.get(i));
+                    stm.setObject((i + 1), prepareValues.get(i));
                 }
             }
             rs = stm.executeQuery();
@@ -82,17 +94,17 @@ public class Database {
 
     private static int executeUpdate(DataSource dataSource,
                                      String prepareUpdateSql,
-                                     List<Object> prepareValueList) {
-        debugSql(prepareUpdateSql, prepareValueList);
+                                     List<Object> prepareValues) {
+        debugSql(prepareUpdateSql, prepareValues);
         Connection conn = null;
         PreparedStatement stm = null;
         try {
             conn = dataSource.getConnection();
             stm = conn.prepareStatement(prepareUpdateSql);
-            if (prepareValueList != null) {
-                int len = prepareValueList.size();
+            if (prepareValues != null) {
+                int len = prepareValues.size();
                 for (int i = 0; i < len; i++) {
-                    stm.setObject((i + 1), prepareValueList.get(i));
+                    stm.setObject((i + 1), prepareValues.get(i));
                 }
             }
             return stm.executeUpdate();
@@ -103,20 +115,18 @@ public class Database {
         }
     }
 
-    public static List<Long> executeInsert(DataSource dataSource,
+    public static List<Long> executeInsert(Connection connection,
                                            String prepareInsertSql,
-                                           List<Object> prepareValueList) {
-        debugSql(prepareInsertSql, prepareValueList);
-        Connection conn = null;
+                                           List<Object> prepareValues) {
+        debugSql(prepareInsertSql, prepareValues);
         PreparedStatement stm = null;
         ResultSet rs = null;
         try {
-            conn = dataSource.getConnection();
-            stm = conn.prepareStatement(prepareInsertSql, Statement.RETURN_GENERATED_KEYS);
-            if (prepareValueList != null) {
-                int len = prepareValueList.size();
+            stm = connection.prepareStatement(prepareInsertSql, Statement.RETURN_GENERATED_KEYS);
+            if (prepareValues != null) {
+                int len = prepareValues.size();
                 for (int i = 0; i < len; i++) {
-                    stm.setObject((i + 1), prepareValueList.get(i));
+                    stm.setObject((i + 1), prepareValues.get(i));
                 }
             }
             stm.executeUpdate();
@@ -129,14 +139,14 @@ public class Database {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         } finally {
-            close(conn, stm, rs);
+            close(connection, stm, rs);
         }
     }
 
-    private static void debugSql(String prepareSelectSql, List<Object> prepareValueList) {
+    private static void debugSql(String prepareSelectSql, List<Object> prepareValues) {
         if (log.isDebugEnabled()) {
             log.debug("Sql: " + prepareSelectSql);
-            log.debug("Parameters: " + prepareValueList);
+            log.debug("Parameters: " + prepareValues);
         }
     }
 

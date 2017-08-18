@@ -5,7 +5,10 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -36,7 +39,7 @@ public class Entity<T extends Storable> {
      * 主键列表
      */
     @Getter
-    private List<Field> pkList;
+    private List<Field> pks;
 
 //    @Getter
 //    private List<Field> allFieldList;
@@ -52,7 +55,7 @@ public class Entity<T extends Storable> {
 
     public Entity(Class<T> type){
         this.type = type;
-        pkList = new ArrayList<>();
+        pks = new ArrayList<>();
         //allFieldList = new ArrayList<>();
         fieldNameMapping = new LinkedHashMap<>();
         storeNameMapping = new LinkedHashMap<>();
@@ -64,7 +67,7 @@ public class Entity<T extends Storable> {
         storeNameMapping.put(field.getStoreName(), field);
 
         if (field.isPk()) {
-            pkList.add(field);
+            pks.add(field);
         }
 
         if (field.isAutoIncrement()) {
@@ -84,17 +87,17 @@ public class Entity<T extends Storable> {
         return storeNameMapping.containsKey(storeName);
     }
 
-    public List<Field> getFieldList() {
+    public List<Field> getFields() {
         return new ArrayList<>(fieldNameMapping.values());
     }
 
-    public List<Field> getStorableFieldList() {
+    public List<Field> getStorableFields() {
         return fieldNameMapping.values().stream()
                 .filter(Field::isStorable)
                 .collect(Collectors.toList());
     }
 
-    public List<Field> getUpdatableFieldList() {
+    public List<Field> getUpdatableFields() {
         return fieldNameMapping.values().stream()
                 .filter(Field::isUpdatable)
                 .collect(Collectors.toList());

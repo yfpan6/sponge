@@ -15,13 +15,13 @@ public class DMLSqlParser<T extends Storable> {
 
     private Entity<T> entity;
     private T entityBean;
-    private List<Entity.Field> storableFieldList;
+    private List<Entity.Field> storableFields;
     private ParsedDMLSqlParser emptyParsedDMLSqlParser;
 
     public DMLSqlParser(Entity<T> entity, T entityBean) {
         this.entity = entity;
         this.entityBean = entityBean;
-        this.storableFieldList = entity.getStorableFieldList();
+        this.storableFields = entity.getStorableFields();
         this.emptyParsedDMLSqlParser = new ParsedDMLSqlParser(null);
     }
 
@@ -41,22 +41,22 @@ public class DMLSqlParser<T extends Storable> {
     }
 
     public ParsedDMLSqlParser parseForInsert() {
-        if (storableFieldList.size() == 0) {
+        if (storableFields.size() == 0) {
             return emptyParsedDMLSqlParser;
         }
 
-        List<Object> prepareValueList = new ArrayList<>();
+        List<Object> prepareValues = new ArrayList<>();
         StringBuilder sql = new StringBuilder();
         sql.append("INSERT INTO ");
         sql.append(entity.getStoreTarget());
         sql.append("(");
-        storableFieldList.forEach(field -> {
+        storableFields.forEach(field -> {
             sql.append(field.getStoreName()).append(",");
-            prepareValueList.add(field.getValue());
+            prepareValues.add(field.getValue());
         });
         sql.setLength(sql.length() - 1);
         sql.append(") VALUES(");
-        int colLen = storableFieldList.size();
+        int colLen = storableFields.size();
         for (int i = 0; i < colLen; i++) {
             sql.append("?,");
         }
@@ -65,15 +65,15 @@ public class DMLSqlParser<T extends Storable> {
 
         Result result = new Result();
         result.prepareSql = sql.toString();
-        result.prepareValueList = prepareValueList;
+        result.prepareValueList = prepareValues;
         return new ParsedDMLSqlParser(result);
     }
 
     public ParsedDMLSqlParser parserForDeleteById() {
-        if (storableFieldList.size() == 0) {
+        if (storableFields.size() == 0) {
             return emptyParsedDMLSqlParser;
         }
-        List<Entity.Field> pkList = entity.getPkList();
+        List<Entity.Field> pkList = entity.getPks();
         if(pkList.isEmpty()) {
             throw new NullPointerException("entity[" + entity.getType() + "] hasn't pk fields");
         }
@@ -96,7 +96,7 @@ public class DMLSqlParser<T extends Storable> {
     }
 
     public ParsedDMLSqlParser parseForDelete(Expression condition) {
-        if (storableFieldList.size() == 0) {
+        if (storableFields.size() == 0) {
             return emptyParsedDMLSqlParser;
         }
         List<Object> prepareValueList = new ArrayList<>();
@@ -105,10 +105,10 @@ public class DMLSqlParser<T extends Storable> {
                 .append(entity.getStoreTarget());
         if (condition != null) {
             sql.append(" WHERE ");
-            SqlExpressionParser.Result parser = SqlExpressionParser.of(condition, entity)
+            SqlExpressionParser.Result parser = SqlExpressionParser.of(entity, condition)
                     .parse().result();
             sql.append(parser.getPrepareSql());
-            prepareValueList.addAll(parser.getPrepareValueList());
+            prepareValueList.addAll(parser.getPrepareValues());
         }
 
         Result result = new Result();

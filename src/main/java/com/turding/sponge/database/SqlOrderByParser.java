@@ -13,25 +13,25 @@ public final class SqlOrderByParser {
     private OrderBy[] orderBys;
     private ParsedSqlOrderByParser parsedSqlOrderByParser;
 
-    private SqlOrderByParser(OrderBy[] orderBys, Entity entity) {
+    private SqlOrderByParser(Entity entity, OrderBy[] orderBys) {
         this.entity = entity;
         this.orderBys = orderBys;
         this.parsedSqlOrderByParser = new ParsedSqlOrderByParser();
     }
 
-    public static SqlOrderByParser of(OrderBy[] orderBys, Entity entity) {
-        return new SqlOrderByParser(orderBys, entity);
+    public static SqlOrderByParser of(Entity entity, OrderBy[] orderBys) {
+        return new SqlOrderByParser(entity, orderBys);
     }
 
     public ParsedSqlOrderByParser parse() {
         StringBuilder orderBySql = new StringBuilder();
-        orderBySql.append("order by ");
+        orderBySql.append("ORDER BY ");
         for (OrderBy orderBy : orderBys) {
             orderBySql.append(entity.getFieldStoreNameByFieldName(orderBy.fieldName()));
             if (orderBy instanceof OrderBy.Asc) {
-                orderBySql.append(" asc, ");
+                orderBySql.append(" ASC, ");
             } else {
-                orderBySql.append(" desc, ");
+                orderBySql.append(" DESC, ");
             }
         }
         orderBySql.setLength(orderBySql.length() - 2);

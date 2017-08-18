@@ -14,24 +14,24 @@ import java.util.Optional;
  */
 public final class SqlExpressionParser {
     private Entity entity;
-    private Expression condition;
+    private Expression expression;
     private ParsedSqlConditionParser parsedSqlConditionParser;
     private Result result;
 
-    private SqlExpressionParser(Expression condition,
-                                Entity entity) {
-        this.condition = condition;
+    private SqlExpressionParser(Entity entity,
+                                Expression expression) {
+        this.expression = expression;
         this.entity = entity;
         this.parsedSqlConditionParser = new ParsedSqlConditionParser();
     }
 
-    public static SqlExpressionParser of(Expression condition, Entity entity) {
-        return new SqlExpressionParser(condition, entity);
+    public static SqlExpressionParser of(Entity entity, Expression expression) {
+        return new SqlExpressionParser(entity, expression);
     }
 
     public ParsedSqlConditionParser parse() {
         result = new Result();
-        Optional<StringBuilder> sql = buildSql(condition);
+        Optional<StringBuilder> sql = buildSql(expression);
         if (sql.isPresent()) {
             result.prepareSql = sql.get().toString();
         }
@@ -41,15 +41,15 @@ public final class SqlExpressionParser {
     /**
      * 构建Sql查询条件.
      *
-     * @param condition
+     * @param expression
      * @return
      */
-    private Optional<StringBuilder> buildSql(Expression condition) {
-        if (condition == null) {
+    private Optional<StringBuilder> buildSql(Expression expression) {
+        if (expression == null) {
             return Optional.empty();
         }
         StringBuilder sql = new StringBuilder();
-        handleExpression(sql, condition);
+        handleExpression(sql, expression);
         return Optional.of(sql);
     }
 
@@ -58,7 +58,7 @@ public final class SqlExpressionParser {
             sql.append(((Expression.Raw) expression).getRawExpression());
         } else if (expression instanceof Expression.Val) {
             sql.append('?');
-            result.prepareValueList.add(((Expression.Val) expression).getValue());
+            result.prepareValues.add(((Expression.Val) expression).getValue());
         } else if (expression instanceof Expression.Wrapper) {
             Expression.Wrapper wrapper = (Expression.Wrapper) expression;
             Optional<StringBuilder> optional = buildSql(wrapper.getWrappedExpression());
@@ -108,14 +108,14 @@ public final class SqlExpressionParser {
             } else {
                 sql.append('?');
             }
-            result.prepareValueList.add(svExp.getValue());
+            result.prepareValues.add(svExp.getValue());
         } else  if (expression instanceof Expression.MuitlValueExpression) {
             Expression.MuitlValueExpression mvExp = (Expression.MuitlValueExpression) expression;
             if (expression instanceof Expression.In) {
                 sql.append(entity.getFieldStoreNameByFieldName(mvExp.getFieldName())).append(" IN (");
                 for (Object value: mvExp.getValues()) {
                     sql.append("?,");
-                    result.prepareValueList.add(value);
+                    result.prepareValues.add(value);
                 }
                 sql.setLength(sql.length() - 1);
                 sql.append(')');
@@ -124,15 +124,15 @@ public final class SqlExpressionParser {
                         .append(" NOT IN (");
                 for (Object value: mvExp.getValues()) {
                     sql.append("?, ");
-                    result.prepareValueList.add(value);
+                    result.prepareValues.add(value);
                 }
                 sql.setLength(sql.length() - 2);
                 sql.append(')');
             } else if (expression instanceof Expression.Between) {
                 sql.append(mvExp.getFieldName())
                         .append("BETWEEN ? AND ?");
-                result.prepareValueList.add(mvExp.getValues()[0]);
-                result.prepareValueList.add(mvExp.getValues()[1]);
+                result.prepareValues.add(mvExp.getValues()[0]);
+                result.prepareValues.add(mvExp.getValues()[1]);
             }
         } else if (expression instanceof Expression.CaseWhen) {
             handleCaseWhenExpression(sql, (Expression.CaseWhen) expression);
@@ -227,7 +227,7 @@ public final class SqlExpressionParser {
          * prepareSql 的参数值列表.
          */
         @Getter
-        private List<Object> prepareValueList;
+        private List<Object> prepareValues;
         /**
          * prepareSql.
          */
@@ -235,7 +235,7 @@ public final class SqlExpressionParser {
         private String prepareSql;
 
         private Result() {
-            this.prepareValueList = new ArrayList<>();
+            this.prepareValues = new ArrayList<>();
         }
 
         /**
@@ -243,7 +243,7 @@ public final class SqlExpressionParser {
          * @return
          */
         public String getRawSql() {
-            return SqlUtil.toRawSql(prepareSql, prepareValueList);
+            return SqlUtil.toRawSql(prepareSql, prepareValues);
         }
     }
 

@@ -39,7 +39,7 @@ public class DBLogger implements MyLogger {
         }
 
         Entity<T> entity = EntityParser.of(logEntity).parse().result();
-        List<Entity.Field> storeFieldList = entity.getStorableFieldList();
+        List<Entity.Field> storeFieldList = entity.getStorableFields();
         if (storeFieldList.size() == 0) {
             return;
         }
@@ -83,7 +83,7 @@ public class DBLogger implements MyLogger {
                 .collect(Collectors.toList());
 
         entityList.forEach(entity -> {
-            List<Entity.Field> storeFieldList = entity.getStorableFieldList();
+            List<Entity.Field> storeFieldList = entity.getStorableFields();
             if (storeFieldList.isEmpty()) {
                 return;
             }
@@ -134,8 +134,8 @@ public class DBLogger implements MyLogger {
         }
 
         Entity<T> entity = EntityParser.of(logEntity).parse().result();
-        List<Entity.Field> updatableFieldList = entity.getUpdatableFieldList();
-        List<Entity.Field> pkList = entity.getPkList();
+        List<Entity.Field> updatableFieldList = entity.getUpdatableFields();
+        List<Entity.Field> pkList = entity.getPks();
         if (updatableFieldList.size() == 0
                 || pkList.size() == 0) {
             return 0;
@@ -174,7 +174,7 @@ public class DBLogger implements MyLogger {
         }
 
         Entity<T> entity = EntityParser.of(logEntity).parse().result();
-        List<Entity.Field> updatableFieldList = entity.getUpdatableFieldList();
+        List<Entity.Field> updatableFieldList = entity.getUpdatableFields();
         if (updatableFieldList.size() == 0) {
             return 0;
         }
@@ -197,9 +197,9 @@ public class DBLogger implements MyLogger {
 
         setSql.setLength(setSql.length() - 1);
         sql.append(setSql).append(" where ");
-        SqlExpressionParser.Result result = SqlExpressionParser.of(condition, entity).parse().result();
+        SqlExpressionParser.Result result = SqlExpressionParser.of(entity, condition).parse().result();
         sql.append(result.getPrepareSql());
-        fieldValueList.addAll(result.getPrepareValueList());
+        fieldValueList.addAll(result.getPrepareValues());
         return Database.update(dataSource, sql.toString(), fieldValueList);
     }
 
@@ -209,7 +209,7 @@ public class DBLogger implements MyLogger {
             return 0;
         }
         Entity<T> entity = EntityParser.of(logEntity).parse().result();
-        List<Entity.Field> pkList = entity.getPkList();
+        List<Entity.Field> pkList = entity.getPks();
         if (pkList.isEmpty()) {
             return 0;
         }
@@ -235,9 +235,9 @@ public class DBLogger implements MyLogger {
         sql.append("delete from ")
                 .append(entity.getStoreTarget())
                 .append(" where ");
-        SqlExpressionParser.Result parser = SqlExpressionParser.of(condition, entity).parse().result();
+        SqlExpressionParser.Result parser = SqlExpressionParser.of(entity, condition).parse().result();
         sql.append(parser.getPrepareSql());
-        return Database.delete(dataSource, sql.toString(), parser.getPrepareValueList());
+        return Database.delete(dataSource, sql.toString(), parser.getPrepareValues());
     }
 
     /**

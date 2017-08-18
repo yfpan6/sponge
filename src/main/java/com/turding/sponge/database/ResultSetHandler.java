@@ -21,11 +21,11 @@ import java.util.Map;
 public class ResultSetHandler<T> implements ResultSetCallback<T> {
 
     private Class<T> clazz;
-    private List<Entity.Field> selectFieldList;
+    private List<Entity.Field> selectFields;
 
-    public ResultSetHandler(Class<T> clazz, List<Entity.Field> selectFieldList) {
+    public ResultSetHandler(Class<T> clazz, List<Entity.Field> selectFields) {
         this.clazz = clazz;
-        this.selectFieldList = selectFieldList;
+        this.selectFields = selectFields;
     }
 
     @Override
@@ -35,7 +35,7 @@ public class ResultSetHandler<T> implements ResultSetCallback<T> {
         Method setMethod;
         while (resultSet.next()) {
             T entity = clazz.newInstance();
-            for (Entity.Field f : selectFieldList) {
+            for (Entity.Field f : selectFields) {
                 setMethod = fieldNameSetterMapping.get(f.getFieldName());
                 if (setMethod == null) {
                     continue;

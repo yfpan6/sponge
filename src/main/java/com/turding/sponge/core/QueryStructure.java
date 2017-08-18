@@ -14,9 +14,9 @@ public class QueryStructure<T extends Storable> {
 
     protected Class<T> entityType;
     protected List<QueryField> fields;
-    protected CombinedExpression condition;
-    protected List<OrderBy> orderByList;
+    protected ComposableExpression condition;
     protected GroupBy groupBy;
+    protected List<OrderBy> orderBys;
     protected Integer limit;
     protected Integer offset;
 
@@ -26,7 +26,8 @@ public class QueryStructure<T extends Storable> {
 
     public static  <T extends Storable> QueryStructure<T> of(Class<T> clazz) {
         QueryStructure queryStructure = new QueryStructure(clazz);
-        queryStructure.orderByList = new ArrayList<>();
+        queryStructure.orderBys = new ArrayList<>();
+        queryStructure.fields = new ArrayList<>();
         return queryStructure;
     }
 
@@ -59,19 +60,19 @@ public class QueryStructure<T extends Storable> {
         return this;
     }
 
-    public QueryStructure<T> setFilterCondition(CombinedExpression condition) {
+    public QueryStructure<T> filterExp(ComposableExpression condition) {
         this.condition = condition;
         return this;
     }
 
-    public QueryStructure<T> setPagination(int pageNumber, int pageSize) {
+    public QueryStructure<T> pagination(int pageNumber, int pageSize) {
         this.offset = (pageNumber - 1) * pageSize;
         this.limit = pageSize;
         return this;
     }
 
-    public QueryStructure<T> addOrder(OrderBy orderBy) {
-        orderByList.add(orderBy);
+    public QueryStructure<T> orderBy(OrderBy... orderBys) {
+        this.orderBys.addAll(Arrays.asList(orderBys));
         return this;
     }
 
@@ -80,12 +81,12 @@ public class QueryStructure<T extends Storable> {
         return this;
     }
 
-    public QueryStructure<T> setOffset(int offset) {
+    public QueryStructure<T> offset(int offset) {
         this.offset = offset;
         return this;
     }
 
-    public QueryStructure<T> setLimit(int limit) {
+    public QueryStructure<T> limit(int limit) {
         this.limit = limit;
         return this;
     }
@@ -94,20 +95,20 @@ public class QueryStructure<T extends Storable> {
         return (Class<T>) entityType;
     }
 
-    public Optional<QueryField[]> queryFields() {
+    public Optional<QueryField[]> setQueryFields() {
         return Optional.ofNullable(fields == null || fields.size() == 0
                 ? null : fields.toArray(new QueryField[0]));
     }
 
-    public Optional<CombinedExpression> filterCondition() {
+    public Optional<ComposableExpression> filterExp() {
         return Optional.ofNullable(condition);
     }
 
-    public Optional<OrderBy[]> orders() {
-        if (orderByList.size() == 0) {
+    public Optional<OrderBy[]> order() {
+        if (orderBys.size() == 0) {
             return Optional.empty();
         }
-        return Optional.of(orderByList.toArray(new OrderBy[0]));
+        return Optional.of(orderBys.toArray(new OrderBy[0]));
     }
 
     public Optional<GroupBy> groupBy() {
