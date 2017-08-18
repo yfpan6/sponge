@@ -59,7 +59,7 @@ public final class SqlQueryStructureParser {
             return this;
         }
 
-        Optional<String[]> selectFields = parseTarget.queryFields();
+        Optional<QueryField[]> selectFields = parseTarget.queryFields();
         if (selectFields.isPresent()) {
             result.selectFieldList = SqlSelectFieldsParser.of(entity, selectFields.get())
                     .parse().result().getEntityFieldList();
@@ -78,7 +78,7 @@ public final class SqlQueryStructureParser {
         }
         Optional<CombinedExpression> condition = parseTarget.filterCondition();
         if (condition.isPresent()) {
-            SqlConditionParser.Result scpResult = SqlConditionParser.of(condition.get(), entity)
+            SqlExpressionParser.Result scpResult = SqlExpressionParser.of(condition.get(), entity)
                     .parse().result();
             result.wherePrepareSql = scpResult.getPrepareSql();
             result.wherePrepareValueList = scpResult.getPrepareValueList();
@@ -146,7 +146,7 @@ public final class SqlQueryStructureParser {
         }
 
         public String sql() {
-            int startPos = prepareSql.indexOf("?");
+            int startPos = prepareSql.indexOf('?');
             if (startPos == -1) {
                 return prepareSql;
             }
@@ -169,7 +169,7 @@ public final class SqlQueryStructureParser {
                         sql.append(value);
                         continue;
                     }
-                    sql.append("'");
+                    sql.append('\'');
                     if (value instanceof Date) {
                         sql.append(value);
                     } else if (value instanceof LocalDate
@@ -178,7 +178,7 @@ public final class SqlQueryStructureParser {
                     } else {
                         sql.append(value);
                     }
-                    sql.append("'");
+                    sql.append('\'');
                 } else {
                     sql.append(c);
                 }
@@ -188,20 +188,20 @@ public final class SqlQueryStructureParser {
 
         private void buildPrepareSql() {
             StringBuilder prepareSql = new StringBuilder();
-            prepareSql.append("select ");
+            prepareSql.append("SELECT ");
             selectFieldList.forEach(field -> {
                 prepareSql.append(field.getStoreName()).append(", ");
             });
             prepareSql.setLength(prepareSql.length() - 2);
-            prepareSql.append(" from ").append(tableName);
+            prepareSql.append(" FROM ").append(tableName);
             if (!StringUtil.isBlank(wherePrepareSql)) {
-                prepareSql.append(" where ").append(wherePrepareSql);
+                prepareSql.append(" WHERE ").append(wherePrepareSql);
             }
             if (!StringUtil.isBlank(orderBySql)) {
-                prepareSql.append(" ").append(orderBySql);
+                prepareSql.append(' ').append(orderBySql);
             }
             if (!StringUtil.isBlank(paginationPrepareSql)) {
-                prepareSql.append(" ").append(paginationPrepareSql);
+                prepareSql.append(' ').append(paginationPrepareSql);
             }
 
             this.prepareSql =  prepareSql.toString();

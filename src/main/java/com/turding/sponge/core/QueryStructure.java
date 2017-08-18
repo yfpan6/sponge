@@ -1,6 +1,7 @@
 package com.turding.sponge.core;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,7 +13,7 @@ import java.util.Optional;
 public class QueryStructure<T extends Storable> {
 
     protected Class<T> entityType;
-    protected String[] fields;
+    protected List<QueryField> fields;
     protected CombinedExpression condition;
     protected List<OrderBy> orderByList;
     protected GroupBy groupBy;
@@ -30,7 +31,31 @@ public class QueryStructure<T extends Storable> {
     }
 
     public QueryStructure<T> setQueryFields(String... fieldNames) {
-        fields = fieldNames;
+        fields = new ArrayList<>();
+        for (int i = 0; i < fieldNames.length; i++) {
+            fields.add(QueryField.of(fieldNames[i]));
+        }
+        return this;
+    }
+
+    public QueryStructure<T> addQueryField(String fieldName) {
+        if (fieldName == null) {
+            throw new NullPointerException("param fieldName is null");
+        }
+        fields.add(QueryField.of(fieldName));
+        return this;
+    }
+
+    public QueryStructure<T> setQueryFields(QueryField... queryFields) {
+        fields = Arrays.asList(queryFields);
+        return this;
+    }
+
+    public QueryStructure<T> addQueryField(QueryField queryField) {
+        if (queryField == null) {
+            throw new NullPointerException("param queryField is null");
+        }
+        fields.add(queryField);
         return this;
     }
 
@@ -69,9 +94,9 @@ public class QueryStructure<T extends Storable> {
         return (Class<T>) entityType;
     }
 
-    public Optional<String[]> queryFields() {
-        return Optional.ofNullable(fields == null || fields.length == 0
-                ? null : fields);
+    public Optional<QueryField[]> queryFields() {
+        return Optional.ofNullable(fields == null || fields.size() == 0
+                ? null : fields.toArray(new QueryField[0]));
     }
 
     public Optional<CombinedExpression> filterCondition() {

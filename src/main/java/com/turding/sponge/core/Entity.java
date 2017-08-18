@@ -201,6 +201,9 @@ public class Entity<T extends Storable> {
         @Getter
         private boolean updatable = true;
 
+        /**
+         * 可用于查询
+         */
         @Getter
         private boolean searchable = true;
     }

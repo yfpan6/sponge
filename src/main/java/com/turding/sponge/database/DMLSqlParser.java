@@ -1,9 +1,6 @@
 package com.turding.sponge.database;
 
-import com.turding.sponge.core.CombinedExpression;
-import com.turding.sponge.core.Entity;
-import com.turding.sponge.core.EntityParser;
-import com.turding.sponge.core.Storable;
+import com.turding.sponge.core.*;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -36,6 +33,13 @@ public class DMLSqlParser<T extends Storable> {
         return new DMLSqlParser(entity, entityBean);
     }
 
+    public static <T extends Storable> DMLSqlParser of(Entity<T> entity) {
+        if (entity == null) {
+            throw new NullPointerException("input parameter[entity] is null.");
+        }
+        return new DMLSqlParser(entity, null);
+    }
+
     public ParsedDMLSqlParser parseForInsert() {
         if (storableFieldList.size() == 0) {
             return emptyParsedDMLSqlParser;
@@ -43,7 +47,7 @@ public class DMLSqlParser<T extends Storable> {
 
         List<Object> prepareValueList = new ArrayList<>();
         StringBuilder sql = new StringBuilder();
-        sql.append("insert into ");
+        sql.append("INSERT INTO ");
         sql.append(entity.getStoreTarget());
         sql.append("(");
         storableFieldList.forEach(field -> {
@@ -51,7 +55,7 @@ public class DMLSqlParser<T extends Storable> {
             prepareValueList.add(field.getValue());
         });
         sql.setLength(sql.length() - 1);
-        sql.append(") values(");
+        sql.append(") VALUES(");
         int colLen = storableFieldList.size();
         for (int i = 0; i < colLen; i++) {
             sql.append("?,");
@@ -76,9 +80,9 @@ public class DMLSqlParser<T extends Storable> {
 
         List<Object> prepareValueList = new ArrayList<>();
         StringBuilder sql = new StringBuilder();
-        sql.append("delete from ")
+        sql.append("DELETE FROM ")
                 .append(entity.getStoreTarget())
-                .append(" where ");
+                .append(" WHERE ");
         pkList.forEach(pkField -> {
             sql.append(pkField.getStoreName()).append(" = ?,");
             prepareValueList.add(pkField.getValue());
@@ -91,18 +95,21 @@ public class DMLSqlParser<T extends Storable> {
         return new ParsedDMLSqlParser(result);
     }
 
-    public ParsedDMLSqlParser parseForDelete(CombinedExpression condition) {
+    public ParsedDMLSqlParser parseForDelete(Expression condition) {
         if (storableFieldList.size() == 0) {
             return emptyParsedDMLSqlParser;
         }
         List<Object> prepareValueList = new ArrayList<>();
         StringBuilder sql = new StringBuilder();
-        sql.append("delete from ")
-                .append(entity.getStoreTarget())
-                .append(" where ");
-        SqlConditionParser.Result parser = SqlConditionParser.of(condition, entity)
-                .parse().result();
-        sql.append(parser.getPrepareSql());
+        sql.append("DELETE FROM ")
+                .append(entity.getStoreTarget());
+        if (condition != null) {
+            sql.append(" WHERE ");
+            SqlExpressionParser.Result parser = SqlExpressionParser.of(condition, entity)
+                    .parse().result();
+            sql.append(parser.getPrepareSql());
+            prepareValueList.addAll(parser.getPrepareValueList());
+        }
 
         Result result = new Result();
         result.prepareSql = sql.toString();

@@ -97,6 +97,4 @@ public class ResultSetHandler<T> implements ResultSetCallback<T> {
         return resultSet.getObject(column);
     }
 
-    public static void main(String[] args) {
-    }
 }

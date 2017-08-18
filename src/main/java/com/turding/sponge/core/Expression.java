@@ -3,8 +3,8 @@ package com.turding.sponge.core;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 查询表达式
@@ -12,62 +12,6 @@ import java.util.Map;
  * Created by yunfeng.pan on 17-6-16.
  */
 public interface Expression {
-
-    static Expression raw(String rawExp) {
-        return new Raw(rawExp);
-    }
-
-    static Expression eq(String fieldName, Object value) {
-        return new Eq(fieldName, value);
-    }
-
-    static Expression unEq(String fieldName, Object value) {
-        return new UnEq(fieldName, value);
-    }
-
-    static Expression gtEq(String fieldName, Object value) {
-        return new GtEq(fieldName, value);
-    }
-
-    static Expression ltEq(String fieldName, Object value) {
-        return new LtEq(fieldName, value);
-    }
-
-    static Expression gt(String fieldName, Object value) {
-        return new GtEq(fieldName, value);
-    }
-
-    static Expression lt(String fieldName, Object value) {
-        return new LtEq(fieldName, value);
-    }
-
-    static Expression contain(String fieldName, Object value) {
-        return new Contain(fieldName, value);
-    }
-
-    static Expression startWith(String fieldName, Object value) {
-        return new StartWith(fieldName, value);
-    }
-
-    static Expression endWith(String fieldName, Object value) {
-        return new EndWith(fieldName, value);
-    }
-
-    static Expression notContain(String fieldName, Object value) {
-        return new NotContain(fieldName, value);
-    }
-
-    static Expression between(String fieldName, Object from, Object to) {
-        return new Between(fieldName, from, to);
-    }
-
-    static Expression in(String fieldName, Object... values) {
-        return new In(fieldName, values);
-    }
-
-    static Expression notIn(String fieldName, Object... values) {
-        return new NotIn(fieldName, values);
-    }
 
     class Eq extends RelationalExpression {
         public Eq(String fieldName, Object value) {
@@ -160,21 +104,36 @@ public interface Expression {
     }
 
     @AllArgsConstructor
-    class Raw implements Expression {
+    class Raw implements ComposableExpression {
         @Getter
-        private String fieldName;
+        private String rawExpression;
     }
 
+    /**
+     * 值
+     */
     @AllArgsConstructor
-    class SingleValueExpression implements Expression {
+    class Val implements ComposableExpression {
+        @Getter
+        private Object value;
+    }
+
+    /**
+     * 单值表达式
+     */
+    @AllArgsConstructor
+    abstract class SingleValueExpression implements ComposableExpression {
         @Getter
         private String fieldName;
         @Getter
         private Object value;
     }
 
+    /**
+     * 多值表达式
+     */
     @AllArgsConstructor
-    class MuitlValueExpression implements Expression {
+    abstract class MuitlValueExpression implements ComposableExpression {
         @Getter
         private String fieldName;
         @Getter
@@ -190,119 +149,135 @@ public interface Expression {
         }
     }
 
+    @AllArgsConstructor
+    abstract class OuterExpression {
+        @Getter
+        private Expression expression;
+    }
+
+    class Not extends OuterExpression implements ComposableExpression {
+        public Not(ComposableExpression expression) {
+            super(expression);
+        }
+    }
+
+    class And  extends OuterExpression implements Expression {
+        public And(ComposableExpression expression) {
+            super(expression);
+        }
+    }
+
+    class Or  extends OuterExpression implements Expression {
+        public Or(ComposableExpression expression) {
+            super(expression);
+        }
+    }
+
     /**
-     * 逻辑表达式： NOT（非）、AND（与）、OR（或）
+     * 聚合表达式
      */
-    @AllArgsConstructor
-    abstract class LogicalExpression implements Expression {
-        @Getter
-        private Expression expression;
-    }
-
-    class Not extends LogicalExpression {
-        public Not(Expression expression) {
-            super(expression);
-        }
-    }
-
-    class And extends LogicalExpression{
-        public And(Expression expression) {
-            super(expression);
-        }
-    }
-
-    class Or extends LogicalExpression {
-        public Or(Expression expression) {
-            super(expression);
-        }
-    }
-
-    @AllArgsConstructor
-    class AggregateExpression implements Expression {
-        @Getter
-        private Expression expression;
-    }
-
-    class Sum extends AggregateExpression {
-        public Sum(Expression expression) {
-            super(expression);
-        }
-    }
-
-    class Avg extends AggregateExpression {
-        public Avg(Expression expression) {
+    abstract class AggregateExpression extends OuterExpression implements ComposableExpression {
+        public AggregateExpression(ComposableExpression expression) {
             super(expression);
         }
     }
 
     class Count extends AggregateExpression {
-        public Count(Expression expression) {
+        public Count(ComposableExpression expression) {
+            super(expression);
+        }
+    }
+
+    class Sum extends AggregateExpression {
+        public Sum(ComposableExpression expression) {
+            super(expression);
+        }
+    }
+
+    class Avg extends AggregateExpression {
+        public Avg(ComposableExpression expression) {
             super(expression);
         }
     }
 
     class Max extends AggregateExpression {
-        public Max(Expression expression) {
+        public Max(ComposableExpression expression) {
             super(expression);
         }
     }
 
     class Min extends AggregateExpression {
-        public Min(Expression expression) {
+        public Min(ComposableExpression expression) {
             super(expression);
         }
     }
 
-    class CaseWhen implements Expression {
+    @AllArgsConstructor
+    class Distinct implements ComposableExpression {
+        @Getter
+        String fieldName;
+    }
+    /**
+     * case when 表达式.
+     */
+    class CaseWhen implements ComposableExpression {
+        @Getter
         private Expression caseExp;
+        @Getter
         private List<Expression> exps;
 
-        public static When ofCaseWhen(Expression whenExp) {
-            CaseWhen caseWhen = new CaseWhen();
-            caseWhen.exps.add(whenExp);
+        public CaseWhen(ComposableExpression caseExp) {
+            this.caseExp = caseExp;
+            exps = new ArrayList<>();
+        }
+
+        public static When ofCaseWhen(ComposableExpression whenExp) {
+            CaseWhen caseWhen = new CaseWhen(null);
             return new When(caseWhen, whenExp);
         }
 
-        public static Case ofCase(Expression caseExp) {
-            CaseWhen caseWhen = new CaseWhen();
-            caseWhen.caseExp = caseExp;
-            return new Case(caseWhen, caseExp);
+        public static Case ofCase(ComposableExpression caseExp) {
+            CaseWhen caseWhen = new CaseWhen(caseExp);
+            return new Case(caseWhen);
         }
 
         @AllArgsConstructor
-        static class Case implements Expression {
+        public static class Case {
             private CaseWhen caseWhen;
-            private Expression caseExp;
 
-            public When when(Expression caseExp) {
-                caseWhen.exps.add(caseExp);
+            public When when(ComposableExpression caseExp) {
                 return new When(caseWhen, caseExp);
             }
         }
 
-        @AllArgsConstructor
-        static class When implements Expression {
+        public static class When extends OuterExpression implements Expression {
             private CaseWhen caseWhen;
-            private Expression whenExp;
 
-            public Then then(Expression thenExp) {
-                caseWhen.exps.add(thenExp);
+            public When(CaseWhen caseWhen, Expression whenExp) {
+                super(whenExp);
+                this.caseWhen = caseWhen;
+                caseWhen.exps.add(this);
+            }
+
+            public Then then(ComposableExpression thenExp) {
                 return new Then(caseWhen, thenExp);
             }
         }
 
-        @AllArgsConstructor
-        static class Then implements Expression {
+        public static class Then extends OuterExpression implements Expression {
             private CaseWhen caseWhen;
-            private Expression thenExp;
 
-            public When when(Expression whenExp) {
-                caseWhen.exps.add(whenExp);
+            public Then(CaseWhen caseWhen, Expression thenExp) {
+                super(thenExp);
+                this.caseWhen = caseWhen;
+                caseWhen.exps.add(this);
+            }
+
+            public When when(ComposableExpression whenExp) {
                 return new When(caseWhen, whenExp);
             }
 
-            public Else els(Expression elseExp) {
-                caseWhen.exps.add(elseExp);
+            public Else els(ComposableExpression elseExp) {
                 return new Else(caseWhen, elseExp);
             }
 
@@ -311,18 +286,26 @@ public interface Expression {
             }
         }
 
-        @AllArgsConstructor
-        static class Else implements Expression {
+        public static class Else extends OuterExpression implements Expression {
             private CaseWhen caseWhen;
-            private Expression elseExp;
+
+            public Else(CaseWhen caseWhen, Expression elseExp) {
+                super(elseExp);
+                this.caseWhen = caseWhen;
+                caseWhen.exps.add(this);
+            }
+
             public CaseWhen end() {
                 return caseWhen;
             }
         }
     }
 
+    /**
+     * 简单表达式， 可指定操作符
+     */
     @AllArgsConstructor
-    class Simple implements Expression {
+    class Simple implements ComposableExpression, Expression {
         @Getter
         String fieldName;
         @Getter
@@ -331,10 +314,15 @@ public interface Expression {
         Object value;
     }
 
+    /**
+     * 包裹表达式.
+     * 表达式 i=1
+     * SQL： 包裹后 (i = 1)
+     */
     @AllArgsConstructor
-    class Wrapper implements Expression {
+    class Wrapper implements ComposableExpression {
         @Getter
-        Expression wrappedExpression;
+        ComposableExpression wrappedExpression;
     }
 
 }

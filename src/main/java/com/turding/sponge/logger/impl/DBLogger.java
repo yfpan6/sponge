@@ -6,7 +6,7 @@ import com.turding.sponge.core.Entity;
 import com.turding.sponge.core.EntityParser;
 import com.turding.sponge.core.Storable;
 import com.turding.sponge.database.Database;
-import com.turding.sponge.database.SqlConditionParser;
+import com.turding.sponge.database.SqlExpressionParser;
 import com.turding.sponge.util.ObjectUtil;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -197,7 +197,7 @@ public class DBLogger implements MyLogger {
 
         setSql.setLength(setSql.length() - 1);
         sql.append(setSql).append(" where ");
-        SqlConditionParser.Result result = SqlConditionParser.of(condition, entity).parse().result();
+        SqlExpressionParser.Result result = SqlExpressionParser.of(condition, entity).parse().result();
         sql.append(result.getPrepareSql());
         fieldValueList.addAll(result.getPrepareValueList());
         return Database.update(dataSource, sql.toString(), fieldValueList);
@@ -235,7 +235,7 @@ public class DBLogger implements MyLogger {
         sql.append("delete from ")
                 .append(entity.getStoreTarget())
                 .append(" where ");
-        SqlConditionParser.Result parser = SqlConditionParser.of(condition, entity).parse().result();
+        SqlExpressionParser.Result parser = SqlExpressionParser.of(condition, entity).parse().result();
         sql.append(parser.getPrepareSql());
         return Database.delete(dataSource, sql.toString(), parser.getPrepareValueList());
     }
