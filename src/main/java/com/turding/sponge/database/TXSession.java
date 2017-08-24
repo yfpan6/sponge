@@ -1,8 +1,11 @@
 package com.turding.sponge.database;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
 
 /**
  * TXSession
@@ -28,24 +31,20 @@ public class TXSession {
         }
     }
 
-    private Connection conn;
+    private Connection connection;
     private PreparedStatement preparedStatement;
     private boolean closed;
 
-    public TXSession(Connection connection) {
-        this.conn = connection;
-        open();
-    }
-
-    private TXSession open() {
-        return open(Level.NONE);
+    TXSession(Connection connection, Level level) {
+        this.connection = connection;
+        open(level);
     }
 
     private TXSession open(Level level) {
         try {
-            conn.setAutoCommit(false);
+            connection.setAutoCommit(false);
             if (level != null && level != Level.NONE) {
-                conn.setTransactionIsolation(level.level);
+                connection.setTransactionIsolation(level.level);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -53,9 +52,54 @@ public class TXSession {
         return this;
     }
 
-    public TXSession execute(String prepareSql, Object... values) {
+    public static TXSession of(DataSource dataSource) {
+        return of(dataSource, null);
+    }
+
+    public static TXSession of(DataSource dataSource, Level level) {
         try {
-            preparedStatement = conn.prepareStatement(prepareSql);
+            return new TXSession(dataSource.getConnection(), level);
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    public static TXSession of(Connection connection) {
+        return of(connection, null);
+    }
+
+    public static TXSession of(Connection connection, Level level) {
+        return new TXSession(connection, level);
+    }
+
+    public TXSession execute(List<String> sqls) {
+        for (String sql : sqls) {
+            execute(sql);
+        }
+        return this;
+    }
+
+    public TXSession execute(String sql) {
+        return execute(sql, new Object[0]);
+    }
+
+    public TXSession execute(Map<String, List<Object>> prepareSqlValues) {
+        prepareSqlValues.forEach((prepareSql, values) ->
+            execute(prepareSql, values)
+        );
+        return this;
+    }
+
+    public TXSession execute(String prepareSql, List<Object> values) {
+        return execute(prepareSql, values == null ? null : values.toArray());
+    }
+
+    public TXSession execute(String prepareSql, Object... values) {
+        if (closed) {
+            throw new IllegalStateException("tx session has closed.");
+        }
+        try {
+            preparedStatement = connection.prepareStatement(prepareSql);
             if (values != null) {
                 for (int i = 0, index = 1; i < values.length; ) {
                     preparedStatement.setObject(index, values[i]);
@@ -71,31 +115,31 @@ public class TXSession {
 
     public void commit() {
         try {
-            conn.commit();
+            connection.commit();
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
-            end();
+            close();
         }
     }
 
     public void rollback() {
         try {
-            conn.rollback();
+            connection.rollback();
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
-            end();
+            close();
         }
     }
 
-    private void end() {
+    private void close() {
         closed = true;
         try {
-            conn.setAutoCommit(true);
+            connection.setAutoCommit(true);
+            Database.close(connection, preparedStatement);
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        Database.close(conn, preparedStatement);
     }
 }
