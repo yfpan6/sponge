@@ -32,19 +32,23 @@ public class ResultSetHandler<T> implements ResultSetCallback<T> {
     public List<T> handle(ResultSet resultSet) throws Exception {
         List<T> resultList = new ArrayList<>();
         Map<String, Method> fieldNameSetterMapping = ObjectUtil.fieldNameAndSetterMapping(clazz);
-        Method setMethod;
         while (resultSet.next()) {
-            T entity = clazz.newInstance();
-            for (Entity.Field f : selectFields) {
-                setMethod = fieldNameSetterMapping.get(f.getFieldName());
-                if (setMethod == null) {
-                    continue;
-                }
-                setMethod.invoke(entity, getValue(resultSet, setMethod.getParameterTypes()[0], f.getStoreName()));
-            }
-            resultList.add(entity);
+            resultList.add(wrap(resultSet, fieldNameSetterMapping));
         }
         return resultList;
+    }
+
+    public T wrap(ResultSet resultSet, Map<String, Method> fieldNameSetterMapping) throws Exception {
+        T entity = clazz.newInstance();
+        Method setMethod;
+        for (Entity.Field f : selectFields) {
+            setMethod = fieldNameSetterMapping.get(f.getFieldName());
+            if (setMethod == null) {
+                continue;
+            }
+            setMethod.invoke(entity, getValue(resultSet, setMethod.getParameterTypes()[0], f.getStoreName()));
+        }
+        return entity;
     }
 
     private Object getValue(ResultSet resultSet, Class<?> paramType, String column) throws Exception {

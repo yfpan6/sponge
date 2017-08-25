@@ -146,13 +146,13 @@ public final class SqlQueryStructureParser {
         private String paginationPrepareSql;
         private Object[] paginationPrepareValues;
         private String prepareSql;
-        private Object[] prepareValues;
+        private List<Object> prepareValues;
 
         public String prepareSql() {
             return prepareSql;
         }
 
-        public Object[] prepareValues() {
+        public List<Object> prepareValues() {
             return prepareValues;
         }
 
@@ -165,7 +165,7 @@ public final class SqlQueryStructureParser {
         }
 
         public String rawSql() {
-            return SqlUtil.toRawSql(prepareSql, Arrays.asList(prepareValues));
+            return SqlUtil.toRawSql(prepareSql, prepareValues);
         }
 
         private void buildPrepareSql() {
@@ -201,7 +201,7 @@ public final class SqlQueryStructureParser {
                 pvs.add(paginationPrepareValues[0]);
                 pvs.add(paginationPrepareValues[1]);
             }
-            prepareValues = pvs.toArray();
+            prepareValues = pvs;
         }
     }
 

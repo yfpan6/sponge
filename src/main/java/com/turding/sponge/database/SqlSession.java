@@ -1,17 +1,7 @@
-package com.turding.sponge.logger.impl;
+package com.turding.sponge.database;
 
-import com.turding.sponge.logger.MyLogger;
-import com.turding.sponge.core.CombinedExpression;
-import com.turding.sponge.core.Entity;
-import com.turding.sponge.core.EntityParser;
-import com.turding.sponge.core.Storable;
-import com.turding.sponge.database.Database;
-import com.turding.sponge.database.SqlExpressionParser;
+import com.turding.sponge.core.*;
 import com.turding.sponge.util.ObjectUtil;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import javax.sql.DataSource;
 import java.lang.reflect.Field;
@@ -20,20 +10,35 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 基于db的日志记录器, 将日志记录到数据库.
- *
- * Created by yunfeng.pan on 17-6-8.
+ * Created by yunfeng.pan on 17-8-18.
  */
-@NoArgsConstructor
-@AllArgsConstructor
-public class DBLogger implements MyLogger {
+public class SqlSession {
 
-    @Getter
-    @Setter
     private DataSource dataSource;
 
-    @Override
-    public <T extends Storable> void log(T logEntity) {
+    SqlSession(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    public static SqlSession of(DataSource dataSource) {
+        return new SqlSession(dataSource);
+    }
+
+    public <T extends Storable> List<T> select(T t) {
+        return select(QueryStructure.of((Class<T>) t.getClass()));
+    }
+
+    public <T extends Storable> List<T> select(Class<T> tClass) {
+        return select(QueryStructure.of(tClass));
+    }
+
+    public <T extends Storable> List<T> select(QueryStructure<T> queryStructure) {
+        SqlQueryStructureParser.Result result = SqlQueryStructureParser.of(queryStructure).parse().result();
+        return Database.select(dataSource, result.prepareSql(), result.prepareValues(),
+                new ResultSetHandler(queryStructure.entityType(), result.entityFields()));
+    }
+
+    public <T extends Storable> void insert(T logEntity) {
         if (logEntity == null) {
             return;
         }
@@ -71,8 +76,7 @@ public class DBLogger implements MyLogger {
         setGeneratedKeyValue(autoIncField, logEntity, generatedKeyList.get(0));
     }
 
-    @Override
-    public <T extends Storable> void log(List<T> logEntityList) {
+    public <T extends Storable> void insertAll(List<T> logEntityList) {
         if (logEntityList == null || logEntityList.isEmpty()) {
             return;
         }
@@ -127,7 +131,6 @@ public class DBLogger implements MyLogger {
         }
     }
 
-    @Override
     public <T extends Storable> int updateByPK(T logEntity) {
         if (logEntity == null) {
             return 0;
@@ -167,7 +170,6 @@ public class DBLogger implements MyLogger {
         return Database.update(dataSource, sql.toString(), fieldValueList);
     }
 
-    @Override
     public <T extends Storable> int update(T logEntity, CombinedExpression condition) {
         if (logEntity == null) {
             return 0;
@@ -203,7 +205,6 @@ public class DBLogger implements MyLogger {
         return Database.update(dataSource, sql.toString(), fieldValueList);
     }
 
-    @Override
     public <T extends Storable> int deleteByPK(T logEntity) {
         if (logEntity == null) {
             return 0;
@@ -228,7 +229,6 @@ public class DBLogger implements MyLogger {
         return Database.delete(dataSource, sql.toString(), fieldValueList);
     }
 
-    @Override
     public <T extends Storable> int delete(Class<T> entityClass, CombinedExpression condition) {
         Entity<T> entity = EntityParser.of(entityClass).parse().result();
         StringBuilder sql = new StringBuilder();
@@ -259,4 +259,5 @@ public class DBLogger implements MyLogger {
             e.printStackTrace();
         }
     }
+
 }

@@ -1,7 +1,6 @@
 package com.turding;
 
 import com.turding.sponge.core.*;
-import com.turding.sponge.database.SqlContext;
 import com.turding.sponge.database.SqlQueryStructureParser;
 import junit.framework.TestCase;
 
@@ -23,9 +22,6 @@ public class QueryTest extends TestCase {
                 .limit(10)).parse().result();
 
         System.out.println(result.rawSql());
-        SqlContext.of(null).openTxSession()
-                .execute("", "")
-                .commit();
 //        DataSource dataSource = null;
 //        List<TestEntity> list = Database.select(dataSource, result.prepareSql(), Arrays.asList(result.prepareValues()),
 //                new ResultSetHandler(queryStructure.entityType(), result.entityFields()));
