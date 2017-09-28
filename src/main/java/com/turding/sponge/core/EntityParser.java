@@ -23,18 +23,25 @@ public class EntityParser<T extends Storable> {
         this.parsedEntityParser = new ParsedEntityParser();
     }
 
-    private EntityParser(Class<T> storeEntityType, T storeBean) {
-        this(storeEntityType);
+    private EntityParser(T storeBean) {
+        this.storeEntityType = (Class<T>) storeBean.getClass();
         this.storeBean = storeBean;
+        this.parsedEntityParser = new ParsedEntityParser();
     }
 
     public static <T extends Storable> EntityParser<T> of(Class<T> clazz) {
+        if (clazz == null) {
+            throw new NullPointerException("the param clazz is null.");
+        }
         EntityParser<T> parser = new EntityParser(clazz);
         return parser;
     }
 
-    public static <T extends Storable> EntityParser<T> of(T entity) {
-        EntityParser<T> parser = new EntityParser(entity.getClass(), entity);
+    public static <T extends Storable> EntityParser<T> of(T storeBean) {
+        if (storeBean == null) {
+            throw new NullPointerException("the param storeBean is null.");
+        }
+        EntityParser<T> parser = new EntityParser(storeBean);
         return parser;
     }
 

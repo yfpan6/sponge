@@ -97,6 +97,12 @@ public class Entity<T extends Storable> {
                 .collect(Collectors.toList());
     }
 
+    public List<Field> getSearchableFields() {
+        return fieldNameMapping.values().stream()
+                .filter(Field::isSearchable)
+                .collect(Collectors.toList());
+    }
+
     public List<Field> getUpdatableFields() {
         return fieldNameMapping.values().stream()
                 .filter(Field::isUpdatable)

@@ -2,8 +2,10 @@ package com.turding.sponge.core;
 
 import com.turding.sponge.util.ObjectUtil;
 
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 组合表达式
@@ -12,10 +14,10 @@ import java.util.List;
  */
 public class CombinedExpression implements ComposableExpression {
 
-    private List<Expression> parts;
+    private List<Expression> parts = new LinkedList<>();
 
     private CombinedExpression(ComposableExpression expression) {
-        parts = new LinkedList<>();
+        assertNull(expression);
         parts.add(expression);
     }
 
@@ -25,18 +27,24 @@ public class CombinedExpression implements ComposableExpression {
      * @param object
      * @return
      */
-    public static CombinedExpression parse(Object object) {
-        // TODO 如果object是基础数据类型，则抛出异常。
-        CombinedExpression condition = new CombinedExpression(null);
+    public static <T extends Storable>  CombinedExpression parse(T object) {
         if (object == null) {
-            return condition;
+            throw new NullPointerException("the param is null.");
         }
 
-        ObjectUtil.fetchFieldAndValueKVMap(object).forEach((fieldName, value) -> {
-            if (value != null) {
-                condition.and(Exps.eq(fieldName, value));
+        List<Entity.Field> fields = EntityParser.of(object)
+                .parse().result().getSearchableFields();
+        CombinedExpression condition = null;
+        boolean first = true;
+        for (Entity.Field field : fields) {
+            if (first) {
+                condition = new CombinedExpression(Exps.eq(field.getFieldName(), field.getValue()));
+                first = false;
+            } else {
+                condition.and(Exps.eq(field.getFieldName(), field.getValue()));
             }
-        });
+        }
+
         return condition;
     }
 
@@ -53,28 +61,38 @@ public class CombinedExpression implements ComposableExpression {
     }
 
     public CombinedExpression and(ComposableExpression expression) {
+        assertNull(expression);
         parts.add(new Expression.And(expression));
         return this;
     }
 
     public CombinedExpression or(ComposableExpression expression) {
+        assertNull(expression);
         parts.add(new Expression.Or(expression));
         return this;
     }
 
     @Deprecated
     public CombinedExpression and(String fieldName, String operation, Object value) {
+        assertNull(fieldName);
         parts.add(new Expression.And(new Expression.Simple(fieldName, operation, value)));
         return this;
     }
 
     @Deprecated
     public CombinedExpression or(String fieldName, String operation, Object value) {
+        assertNull(fieldName);
         parts.add(new Expression.Or(new Expression.Simple(fieldName, operation, value)));
         return this;
     }
 
     public Wrapper wrapUp() {
         return new Expression.Wrapper(this);
+    }
+
+    private void assertNull(Object param) {
+        if (param == null) {
+            throw new NullPointerException("the param is null.");
+        }
     }
 }
