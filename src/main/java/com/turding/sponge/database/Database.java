@@ -34,6 +34,7 @@ public class Database {
             close(conn);
         }
     }
+
     public static int update(DataSource dataSource,
                              String updateSql) {
         return executeUpdate(dataSource, updateSql, null);
@@ -62,6 +63,7 @@ public class Database {
                                      ResultSetCallback<T> callback) {
         return select(dataSource, selectSql, null, callback);
     }
+
     public static <T> List<T> select(DataSource dataSource,
                               String prepareSelectSql,
                               List<Object> prepareValues,
@@ -92,15 +94,23 @@ public class Database {
         }
     }
 
-    private static int executeUpdate(DataSource dataSource,
+    public static int executeUpdate(DataSource dataSource,
                                      String prepareUpdateSql,
                                      List<Object> prepareValues) {
+        try {
+            return executeUpdate(dataSource.getConnection(), prepareUpdateSql, prepareValues);
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    public static int executeUpdate(Connection connection,
+                                    String prepareUpdateSql,
+                                    List<Object> prepareValues) {
         debugSql(prepareUpdateSql, prepareValues);
-        Connection conn = null;
         PreparedStatement stm = null;
         try {
-            conn = dataSource.getConnection();
-            stm = conn.prepareStatement(prepareUpdateSql);
+            stm = connection.prepareStatement(prepareUpdateSql);
             if (prepareValues != null) {
                 int len = prepareValues.size();
                 for (int i = 0; i < len; i++) {
@@ -109,9 +119,19 @@ public class Database {
             }
             return stm.executeUpdate();
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
         } finally {
-            close(conn, stm);
+            close(connection, stm);
+        }
+    }
+
+    public static List<Long> executeInsert(DataSource dataSource,
+                                           String prepareInsertSql,
+                                           List<Object> prepareValues) {
+        try {
+            return executeInsert(dataSource.getConnection(), prepareInsertSql, prepareValues);
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
         }
     }
 
@@ -137,9 +157,30 @@ public class Database {
             }
             return generatedKeyList;
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
         } finally {
             close(connection, stm, rs);
+        }
+    }
+
+    public static boolean execute(DataSource dataSource, String sql) {
+        try {
+            return execute(dataSource.getConnection(), sql);
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    public static boolean execute(Connection connection, String sql) {
+        debugSql(sql, null);
+        Statement stm = null;
+        try {
+            stm = connection.createStatement();
+            return stm.execute(sql);
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        } finally {
+            close(connection, stm);
         }
     }
 

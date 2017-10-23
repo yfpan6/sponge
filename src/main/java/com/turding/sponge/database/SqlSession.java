@@ -2,11 +2,13 @@ package com.turding.sponge.database;
 
 import com.turding.sponge.core.*;
 import com.turding.sponge.util.ObjectUtil;
+import com.turding.sponge.util.StringUtil;
 
 import javax.sql.DataSource;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -16,7 +18,7 @@ public class SqlSession {
 
     private DataSource dataSource;
 
-    SqlSession(DataSource dataSource) {
+    public SqlSession(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
@@ -38,7 +40,64 @@ public class SqlSession {
                 new ResultSetHandler(queryStructure.entityType(), result.entityFields()));
     }
 
+    public <T extends Storable> List<T> select(String selectSql, Class<T> clazz) {
+        return select(selectSql, null, clazz);
+    }
+
+    public <T extends Storable> List<T> select(String prepareSelectSql,
+                                               List<Object> prepareValues,
+                                               Class<T> clazz) {
+        return Database.select(dataSource, prepareSelectSql, prepareValues,
+                new ResultSetHandler(clazz, EntityParser.of(clazz)
+                        .parse().result().getSearchableFields()));
+    }
+
+    public List<Map<String, Object>> select(String selectSql, String... columnName) {
+        return Database.select(dataSource, selectSql, null,
+                new MapResultSetHandler(columnName));
+    }
+
+    public List<Map<String, Object>> select(String prepareSelectSql,
+                                            List<Object> prepareValues,
+                                            String... columnName) {
+        return Database.select(dataSource, prepareSelectSql, prepareValues,
+                new MapResultSetHandler(columnName));
+    }
+
+    public <T> T selectSingleColumnValue(String selectSql, String columnName, Class<T> clazz) {
+        List<T> list = Database.select(dataSource, selectSql, null,
+                new SingleValueResultSetHandler(columnName, clazz));
+        return list == null || list.isEmpty() ? null : list.get(0);
+    }
+
+    public <T> T selectSingleColumnValue(String selectSql, Class<T> clazz) {
+        return selectSingleColumnValue(selectSql, (String) null, clazz);
+    }
+
+    public <T> T selectSingleColumnValue(String prepareSelectSql,
+                                         List<Object> prepareValues,
+                                         Class<T> clazz) {
+        return selectSingleColumnValue(prepareSelectSql, prepareValues, clazz);
+    }
+
+    public <T> T selectSingleColumnValue(String prepareSelectSql, String columnName,
+                                         List<Object> prepareValues, Class<T> clazz) {
+        List<T> list = Database.select(dataSource, prepareSelectSql, prepareValues,
+                new SingleValueResultSetHandler(columnName, clazz));
+        return list == null || list.isEmpty() ? null : list.get(0);
+    }
+
     public <T extends Storable> void insert(T logEntity) {
+        insertOrUpdate(logEntity, null);
+    }
+
+    /**
+     * 依赖 ON DUPLICATE KEY UPDATE 语法实现。如数据库支持请小心谨慎。
+     * @param logEntity
+     * @param onDuplicateSqlPart
+     * @param <T>
+     */
+    public <T extends Storable> void insertOrUpdate(T logEntity, String onDuplicateSqlPart) {
         if (logEntity == null) {
             return;
         }
@@ -66,6 +125,10 @@ public class SqlSession {
         sql.setLength(sql.length() - 1);
         sql.append(")");
 
+        if (!StringUtil.isBlank(onDuplicateSqlPart)) {
+            sql.append(" ").append(onDuplicateSqlPart);
+        }
+
         List<Long> generatedKeyList = Database.insert(dataSource, sql.toString(), storeFieldValueList);
 
         Entity.Field autoIncField;
@@ -77,6 +140,16 @@ public class SqlSession {
     }
 
     public <T extends Storable> void insertAll(List<T> logEntityList) {
+        insertOrUpdateAll(logEntityList, null);
+    }
+
+    /**
+     * 依赖 ON DUPLICATE KEY UPDATE 语法实现。如数据库支持请小心谨慎。
+     * @param logEntityList
+     * @param onDuplicateSqlPart
+     * @param <T>
+     */
+    public <T extends Storable> void insertOrUpdateAll(List<T> logEntityList, String onDuplicateSqlPart) {
         if (logEntityList == null || logEntityList.isEmpty()) {
             return;
         }
@@ -118,6 +191,11 @@ public class SqlSession {
         }
 
         sql.setLength(sql.length() - 1);
+
+        if (!StringUtil.isBlank(onDuplicateSqlPart)) {
+            sql.append(" ").append(onDuplicateSqlPart);
+        }
+
         List<Long> generatedKeyList = Database.insert(dataSource, sql.toString(), filedValues);
 
         Entity<T> entity = entityList.get(0);
@@ -238,6 +316,34 @@ public class SqlSession {
         SqlExpressionParser.Result parser = SqlExpressionParser.of(entity, condition).parse().result();
         sql.append(parser.getPrepareSql());
         return Database.delete(dataSource, sql.toString(), parser.getPrepareValues());
+    }
+
+    public List<Long> insert(String insertSql) {
+        return insert(insertSql, null);
+    }
+
+    public List<Long> insert(String prepareInsertSql, List<Object> prepareValues) {
+        return Database.executeInsert(dataSource, prepareInsertSql, prepareValues);
+    }
+
+    public int update(String updateSql) {
+        return update(updateSql, null);
+    }
+
+    public int update(String prepareUpdateSql, List<Object> prepareValues) {
+        return Database.executeUpdate(dataSource, prepareUpdateSql, prepareValues);
+    }
+
+    public int delete(String deleteSql) {
+        return delete(deleteSql, null);
+    }
+
+    public int delete(String prepareDeleteSql, List<Object> prepareValues) {
+        return Database.executeUpdate(dataSource, prepareDeleteSql, prepareValues);
+    }
+
+    public boolean execute(String sql) {
+        return Database.execute(dataSource, sql);
     }
 
     /**

@@ -46,59 +46,11 @@ public class ResultSetHandler<T> implements ResultSetCallback<T> {
             if (setMethod == null) {
                 continue;
             }
-            setMethod.invoke(entity, getValue(resultSet, setMethod.getParameterTypes()[0], f.getStoreName()));
+            setMethod.invoke(entity, SqlUtil.getValue(resultSet,
+                    setMethod.getParameterTypes()[0],
+                    f.getStoreName()));
         }
         return entity;
-    }
-
-    private Object getValue(ResultSet resultSet, Class<?> paramType, String column) throws Exception {
-        if (paramType == String.class) {
-            return resultSet.getString(column);
-        }
-        if (paramType == Integer.class || paramType == Integer.TYPE) {
-            return resultSet.getInt(column);
-        }
-        if (paramType == Long.class || paramType == Long.TYPE) {
-            return resultSet.getLong(column);
-        }
-        if (paramType == Short.class || paramType == Short.TYPE) {
-            return resultSet.getShort(column);
-        }
-        if (paramType == Float.class || paramType == Float.TYPE) {
-            return resultSet.getFloat(column);
-        }
-        if (paramType == Double.class || paramType == Double.TYPE) {
-            return resultSet.getDouble(column);
-        }
-        if (paramType == Byte.class || paramType == Byte.TYPE) {
-            return resultSet.getByte(column);
-        }
-        if (paramType == Boolean.class || paramType == Boolean.TYPE) {
-            return resultSet.getBoolean(column);
-        }
-        if (paramType == BigDecimal.class) {
-            return resultSet.getBigDecimal(column);
-        }
-        if (paramType == Timestamp.class
-                || paramType == Date.class) {
-            return resultSet.getTimestamp(column);
-        }
-        if (paramType == LocalDate.class) {
-            Date date = resultSet.getDate(column);
-            if (date == null) {
-                return null;
-            }
-            return resultSet.getDate(column).toLocalDate();
-        }
-        if (paramType == LocalDateTime.class) {
-            Date date = resultSet.getTimestamp(column);
-            if (date == null) {
-                return null;
-            }
-            return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
-        }
-
-        return resultSet.getObject(column);
     }
 
 }
