@@ -1,11 +1,7 @@
 package com.turding.sponge.core;
 
-import com.turding.sponge.util.ObjectUtil;
-
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 组合表达式
