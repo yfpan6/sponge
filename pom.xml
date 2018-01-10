@@ -15,20 +15,6 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
-  <distributionManagement>
-    <repository>
-      <id>releases</id>
-      <name>User Project Release</name>
-      <url>http://awsjenkins.flyudesk.com/nexus/content/repositories/releases/</url>
-    </repository>
-
-    <snapshotRepository>
-      <id>snapshots</id>
-      <name>User Project SNAPSHOTS</name>
-      <url>http://awsjenkins.flyudesk.com/nexus/content/repositories/snapshots/</url>
-    </snapshotRepository>
-  </distributionManagement>
-
   <dependencies>
     <dependency>
       <groupId>junit</groupId>
@@ -56,7 +42,7 @@
         <configuration>
           <source>${jdk.version}</source>
           <target>${jdk.version}</target>
-          <encoding>UTF-8</encoding>
+          <encoding>${project.build.sourceEncoding}</encoding>
         </configuration>
       </plugin>
     </plugins>
