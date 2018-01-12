@@ -61,7 +61,7 @@ public class Entity<T extends Storable> {
         storeNameMapping = new LinkedHashMap<>();
     }
 
-    public void addField(Field field) {
+    public void addField(final Field field) {
         //allFieldList.add(field);
         fieldNameMapping.put(field.getFieldName(), field);
         storeNameMapping.put(field.getStoreName(), field);

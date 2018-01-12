@@ -32,7 +32,7 @@ public final class SqlQueryStructureParser {
 
     public ParsedSqlQueryStructureParser parse() {
         result = new Result();
-        this.parseEntityClass()
+        this.parseEntity()
             .parseSelectFields()
             .parseCondition()
             .parseGroupBy()
@@ -41,11 +41,12 @@ public final class SqlQueryStructureParser {
         return parsedSqlQueryStructureParser;
     }
 
-    private SqlQueryStructureParser parseEntityClass() {
+    private SqlQueryStructureParser parseEntity() {
         if (!validParser) {
             return this;
         }
-        entity = EntityParser.of(parseTarget.entityType()).parse().result();
+
+        entity = parseTarget.entity();
         result.tableName = entity.getStoreTarget();
         return this;
     }
@@ -78,7 +79,7 @@ public final class SqlQueryStructureParser {
         if (!validParser) {
             return this;
         }
-        Optional<CombinedExpression> condition = parseTarget.filterExp();
+        Optional<ComposableExpression> condition = parseTarget.filterExp();
         if (condition.isPresent()) {
             SqlExpressionParser.Result scpResult = SqlExpressionParser.of(entity, condition.get())
                     .parse().result();

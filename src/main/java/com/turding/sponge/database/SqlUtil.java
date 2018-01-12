@@ -131,6 +131,19 @@ public class SqlUtil {
         return result.toString();
     }
 
+    public static String pagination(DatabaseDialect dialect, String sql, int pageNum, int pageSize) {
+        if (sql == null) {
+            return null;
+        }
+        if (dialect == DatabaseDialect.MYSQL) {
+            if (sql.toUpperCase().indexOf(" LIMIT ") == -1) {
+                sql = sql + " LIMIT " + (pageNum - 1) * pageSize + "," + pageSize;
+            }
+        }
+
+        return sql;
+    }
+
     private static String toDateStr(LocalDateTime dateTime) {
         return dateTime.format(defDateTimeFmtPattern);
     }

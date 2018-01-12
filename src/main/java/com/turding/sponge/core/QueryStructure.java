@@ -10,9 +10,9 @@ import java.util.Optional;
  *
  * Created by yunfeng.pan on 17-6-16.
  */
-public class QueryStructure<T extends Storable> {
+public class QueryStructure {
 
-    protected Class<T> entityType;
+    protected Entity<?> entity;
     protected List<QueryField> fields;
     protected ComposableExpression condition;
     protected GroupBy groupBy;
@@ -20,18 +20,25 @@ public class QueryStructure<T extends Storable> {
     protected Integer limit;
     protected Integer offset;
 
-    private QueryStructure(Class<T> entityType) {
-        this.entityType = entityType;
+    private <T extends Storable> QueryStructure(Entity<T> entity) {
+        this.entity = entity;
     }
 
-    public static  <T extends Storable> QueryStructure<T> of(Class<T> clazz) {
-        QueryStructure queryStructure = new QueryStructure(clazz);
+    public static <T extends Storable> QueryStructure of(Class<T> clazz) {
+        QueryStructure queryStructure = new QueryStructure(EntityParser.of(clazz).parse().result());
         queryStructure.orderBys = new ArrayList<>();
         queryStructure.fields = new ArrayList<>();
         return queryStructure;
     }
 
-    public QueryStructure<T> setQueryFields(String... fieldNames) {
+    public static <T extends Storable> QueryStructure of(Entity<T> entity) {
+        QueryStructure queryStructure = new QueryStructure(entity);
+        queryStructure.orderBys = new ArrayList<>();
+        queryStructure.fields = new ArrayList<>();
+        return queryStructure;
+    }
+
+    public QueryStructure setQueryFields(String... fieldNames) {
         fields = new ArrayList<>();
         for (int i = 0; i < fieldNames.length; i++) {
             fields.add(QueryField.of(fieldNames[i]));
@@ -39,7 +46,7 @@ public class QueryStructure<T extends Storable> {
         return this;
     }
 
-    public QueryStructure<T> addQueryField(String fieldName) {
+    public QueryStructure addQueryField(String fieldName) {
         if (fieldName == null) {
             throw new NullPointerException("param fieldName is null");
         }
@@ -47,12 +54,12 @@ public class QueryStructure<T extends Storable> {
         return this;
     }
 
-    public QueryStructure<T> setQueryFields(QueryField... queryFields) {
+    public QueryStructure setQueryFields(QueryField... queryFields) {
         fields = Arrays.asList(queryFields);
         return this;
     }
 
-    public QueryStructure<T> addQueryField(QueryField queryField) {
+    public QueryStructure addQueryField(QueryField queryField) {
         if (queryField == null) {
             throw new NullPointerException("param queryField is null");
         }
@@ -60,39 +67,39 @@ public class QueryStructure<T extends Storable> {
         return this;
     }
 
-    public QueryStructure<T> filterExp(ComposableExpression condition) {
+    public QueryStructure filterExp(ComposableExpression condition) {
         this.condition = condition;
         return this;
     }
 
-    public QueryStructure<T> pagination(int pageNumber, int pageSize) {
+    public QueryStructure pagination(int pageNumber, int pageSize) {
         this.offset = (pageNumber - 1) * pageSize;
         this.limit = pageSize;
         return this;
     }
 
-    public QueryStructure<T> orderBy(OrderBy... orderBys) {
+    public QueryStructure orderBy(OrderBy... orderBys) {
         this.orderBys.addAll(Arrays.asList(orderBys));
         return this;
     }
 
-    public QueryStructure<T> groupBy(String... groupByFields) {
+    public QueryStructure groupBy(String... groupByFields) {
         groupBy = GroupBy.of(groupByFields);
         return this;
     }
 
-    public QueryStructure<T> offset(int offset) {
+    public QueryStructure offset(int offset) {
         this.offset = offset;
         return this;
     }
 
-    public QueryStructure<T> limit(int limit) {
+    public QueryStructure limit(int limit) {
         this.limit = limit;
         return this;
     }
 
-    public <T extends Storable> Class<T> entityType() {
-        return (Class<T>) entityType;
+    public Entity entity() {
+        return entity;
     }
 
     public Optional<QueryField[]> setQueryFields() {

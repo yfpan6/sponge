@@ -16,93 +16,190 @@ import java.util.stream.Collectors;
  */
 public class SqlSession {
 
+    /**
+     * 数据库方言
+     */
+    private DatabaseDialect dialect;
+
     private DataSource dataSource;
 
-    public SqlSession(DataSource dataSource) {
+    public SqlSession(DataSource dataSource, String dialect) {
         this.dataSource = dataSource;
+        this.dialect = dialect == null ? DatabaseDialect.MYSQL : DatabaseDialect.valueOf(dialect);
+    }
+
+    public SqlSession(DataSource dataSource, DatabaseDialect dialect) {
+        this.dataSource = dataSource;
+        this.dialect = dialect == null ? DatabaseDialect.MYSQL : dialect;
     }
 
     public static SqlSession of(DataSource dataSource) {
-        return new SqlSession(dataSource);
+        return new SqlSession(dataSource, (DatabaseDialect) null);
     }
 
+    /**
+     * 条件查询
+     * @param t 封装了查询条件的存储对象，忽略null值
+     * @param <T>
+     * @return
+     */
     public <T extends Storable> List<T> select(T t) {
-        return select(QueryStructure.of((Class<T>) t.getClass()));
+        Entity<T> entity = EntityParser.of(t).parse().result();
+        List<Entity.Field> storableFields = entity.getStorableFields();
+        QueryStructure queryStructure = QueryStructure.of(entity);
+        CombinedExpression condition = null;
+        boolean isFirst = true;
+        for (Entity.Field storableField : storableFields) {
+            if (storableField.getValue() == null) {
+                continue;
+            }
+            if (isFirst) {
+                isFirst = false;
+                condition = CombinedExpression.of(Exps.eq(storableField.getFieldName(), storableField.getValue()));
+            }
+            condition.and(Exps.eq(storableField.getFieldName(), storableField.getValue()));
+        }
+        queryStructure.filterExp(condition);
+        return select(queryStructure);
     }
 
-    public <T extends Storable> List<T> select(Class<T> tClass) {
-        return select(QueryStructure.of(tClass));
+    public <T extends Storable> List<T> select(Class<T> entityClass) {
+        return select(QueryStructure.of(entityClass));
     }
 
-    public <T extends Storable> List<T> select(QueryStructure<T> queryStructure) {
+    public <T extends Storable> List<T> select(Entity<T> entity) {
+        return select(QueryStructure.of(entity));
+    }
+
+    public <T> List<T> select(QueryStructure queryStructure) {
         SqlQueryStructureParser.Result result = SqlQueryStructureParser.of(queryStructure).parse().result();
-        return Database.select(dataSource, result.prepareSql(), result.prepareValues(),
-                new ResultSetHandler(queryStructure.entityType(), result.entityFields()));
+        return select(result.prepareSql(), result.prepareValues(), queryStructure.entity());
     }
 
-    public <T extends Storable> List<T> select(String selectSql, Class<T> clazz) {
-        return select(selectSql, null, clazz);
+    public <T> List<T> select(QueryStructure queryStructure, Class<T> resultBeanType) {
+        SqlQueryStructureParser.Result result = SqlQueryStructureParser.of(queryStructure).parse().result();
+        return select(result.prepareSql(), result.prepareValues(), resultBeanType);
+    }
+
+    public <T> List<T> select(String selectSql, Class<T> resultBeanType) {
+        return select(selectSql, null, resultBeanType);
+    }
+
+    public <T> List<T> select(String prepareSelectSql,
+                              List<Object> prepareValues,
+                              Class<T> resultBeanType) {
+        return select(prepareSelectSql, prepareValues,
+                resultBeanType, null);
+    }
+
+    public <T> List<T> select(String prepareSelectSql,
+                              List<Object> prepareValues,
+                              Class<T> resultBeanType,
+                              Map<String, String> selectFieldsMapping) {
+        return Database.select(dataSource, prepareSelectSql, prepareValues,
+                new ResultSetHandler(resultBeanType, selectFieldsMapping));
+    }
+
+    public <T extends Storable> List<T> select(String selectSql, Entity<T> entity) {
+        return select(selectSql, null, entity);
     }
 
     public <T extends Storable> List<T> select(String prepareSelectSql,
                                                List<Object> prepareValues,
-                                               Class<T> clazz) {
+                                               Entity<T> entity) {
         return Database.select(dataSource, prepareSelectSql, prepareValues,
-                new ResultSetHandler(clazz, EntityParser.of(clazz)
-                        .parse().result().getSearchableFields()));
+                new ResultSetHandler(entity.getType(), entity.getSearchableFields()));
     }
 
-    public List<Map<String, Object>> select(String selectSql, String... columnName) {
+    /**
+     * 条件查询
+     * @param t 封装了查询条件的存储对象，忽略null值
+     * @param <T>
+     * @return
+     */
+    public <T extends Storable> T selectOne(T t) {
+        return selectOne(QueryStructure.of(t.getClass()));
+    }
+
+    public <T extends Storable> T selectOne(Class<T> entityClass) {
+        return selectOne(QueryStructure.of(entityClass));
+    }
+
+    public <T extends Storable> T selectOne(Entity<T> entity) {
+        return selectOne(QueryStructure.of(entity));
+    }
+
+    public <T> T selectOne(QueryStructure queryStructure) {
+        Class<T> resultBeanType = queryStructure.entity().getType();
+        return selectOne(queryStructure, resultBeanType);
+    }
+
+    public <T> T selectOne(QueryStructure queryStructure, Class<T> resultBeanType) {
+        SqlQueryStructureParser.Result result = SqlQueryStructureParser.of(queryStructure).parse().result();
+        return selectOne(result.prepareSql(), result.prepareValues(), resultBeanType);
+    }
+
+    public <T> T selectOne(String selectSql, Class<T> resultBeanType) {
+        return selectOne(selectSql, null, resultBeanType);
+    }
+
+    public <T> T selectOne(String prepareSelectSql,
+                              List<Object> prepareValues,
+                              Class<T> resultBeanType) {
+        return selectOne(prepareSelectSql, prepareValues,
+                resultBeanType, (Map<String, String> ) null);
+    }
+
+    public <T> T selectOne(String prepareSelectSql,
+                           List<Object> prepareValues,
+                           Class<T> resultBeanType,
+                           Map<String, String> selectFieldsMapping) {
+        List<T> result = Database.select(dataSource, prepareSelectSql, prepareValues,
+                new ResultSetHandler(resultBeanType, selectFieldsMapping));
+        return result == null || result.isEmpty() ? null : result.get(0);
+    }
+
+    public <T extends Storable> T selectOne(String selectSql, Entity<T> entity) {
+        return selectOne(selectSql, null, entity);
+    }
+
+    public <T extends Storable> T selectOne(String prepareSelectSql,
+                                               List<Object> prepareValues,
+                                               Entity<T> entity) {
+        List<T> result = Database.select(dataSource, prepareSelectSql, prepareValues,
+                new ResultSetHandler(entity.getType(), entity.getSearchableFields()));
+        return result == null || result.isEmpty() ? null : result.get(0);
+    }
+
+    public <T> List<T> selectSingleColumnValue(String selectSql, String columnName, Class<T> columnDataType) {
         return Database.select(dataSource, selectSql, null,
-                new MapResultSetHandler(columnName));
+                new SingleValueResultSetHandler(columnName, columnDataType));
     }
 
-    public List<Map<String, Object>> select(String prepareSelectSql,
-                                            List<Object> prepareValues,
-                                            String... columnName) {
-        return Database.select(dataSource, prepareSelectSql, prepareValues,
-                new MapResultSetHandler(columnName));
-    }
-
-    public <T> T selectSingleColumnValue(String selectSql, String columnName, Class<T> clazz) {
-        List<T> list = Database.select(dataSource, selectSql, null,
-                new SingleValueResultSetHandler(columnName, clazz));
-        return list == null || list.isEmpty() ? null : list.get(0);
-    }
-
-    public <T> T selectSingleColumnValue(String selectSql, Class<T> clazz) {
-        return selectSingleColumnValue(selectSql, (String) null, clazz);
-    }
-
-    public <T> T selectSingleColumnValue(String prepareSelectSql,
+    public <T> List<T> selectSingleColumnValue(String prepareSelectSql,
                                          List<Object> prepareValues,
-                                         Class<T> clazz) {
-        return selectSingleColumnValue(prepareSelectSql, prepareValues, clazz);
+                                         String columnName,
+                                         Class<T> columnDataType) {
+        return Database.select(dataSource, prepareSelectSql, prepareValues,
+                new SingleValueResultSetHandler(columnName, columnDataType));
     }
 
-    public <T> T selectSingleColumnValue(String prepareSelectSql, String columnName,
-                                         List<Object> prepareValues, Class<T> clazz) {
-        List<T> list = Database.select(dataSource, prepareSelectSql, prepareValues,
-                new SingleValueResultSetHandler(columnName, clazz));
-        return list == null || list.isEmpty() ? null : list.get(0);
-    }
-
-    public <T extends Storable> void insert(T logEntity) {
-        insertOrUpdate(logEntity, null);
+    public <T extends Storable> void insert(T entity) {
+        insertOrUpdate(entity, null);
     }
 
     /**
      * 依赖 ON DUPLICATE KEY UPDATE 语法实现。如数据库支持请小心谨慎。
-     * @param logEntity
+     * @param entityInstance
      * @param onDuplicateSqlPart
      * @param <T>
      */
-    public <T extends Storable> void insertOrUpdate(T logEntity, String onDuplicateSqlPart) {
-        if (logEntity == null) {
+    public <T extends Storable> void insertOrUpdate(T entityInstance, String onDuplicateSqlPart) {
+        if (entityInstance == null) {
             return;
         }
 
-        Entity<T> entity = EntityParser.of(logEntity).parse().result();
+        Entity<T> entity = EntityParser.of(entityInstance).parse().result();
         List<Entity.Field> storeFieldList = entity.getStorableFields();
         if (storeFieldList.size() == 0) {
             return;
@@ -136,27 +233,27 @@ public class SqlSession {
                 || generatedKeyList.isEmpty()) {
             return;
         }
-        setGeneratedKeyValue(autoIncField, logEntity, generatedKeyList.get(0));
+        setGeneratedKeyValue(autoIncField, entityInstance, generatedKeyList.get(0));
     }
 
-    public <T extends Storable> void insertAll(List<T> logEntityList) {
-        insertOrUpdateAll(logEntityList, null);
+    public <T extends Storable> void insertAll(List<T> entityInstanceList) {
+        insertOrUpdateAll(entityInstanceList, null);
     }
 
     /**
-     * 依赖 ON DUPLICATE KEY UPDATE 语法实现。如数据库支持请小心谨慎。
-     * @param logEntityList
+     * 依赖 ON DUPLICATE KEY UPDATE 语法实现。如数据库不支持请小心谨慎。
+     * @param entityInstanceList
      * @param onDuplicateSqlPart
      * @param <T>
      */
-    public <T extends Storable> void insertOrUpdateAll(List<T> logEntityList, String onDuplicateSqlPart) {
-        if (logEntityList == null || logEntityList.isEmpty()) {
+    public <T extends Storable> void insertOrUpdateAll(List<T> entityInstanceList, String onDuplicateSqlPart) {
+        if (entityInstanceList == null || entityInstanceList.isEmpty()) {
             return;
         }
         List<Object> filedValues = new ArrayList<>();
         StringBuilder sql = new StringBuilder();
-        List<Entity<T>> entityList = logEntityList.stream()
-                .map(logEntity -> EntityParser.of(logEntity).parse().result())
+        List<Entity<T>> entityList = entityInstanceList.stream()
+                .map(entityInstance -> EntityParser.of(entityInstance).parse().result())
                 .collect(Collectors.toList());
 
         entityList.forEach(entity -> {
@@ -205,16 +302,16 @@ public class SqlSession {
         }
 
         for (int i = 0, len = generatedKeyList.size(); i < len; i++) {
-            setGeneratedKeyValue(autoIncField, logEntityList.get(i), generatedKeyList.get(i));
+            setGeneratedKeyValue(autoIncField, entityInstanceList.get(i), generatedKeyList.get(i));
         }
     }
 
-    public <T extends Storable> int updateByPK(T logEntity) {
-        if (logEntity == null) {
+    public <T extends Storable> int updateByPK(T entityInstance) {
+        if (entityInstance == null) {
             return 0;
         }
 
-        Entity<T> entity = EntityParser.of(logEntity).parse().result();
+        Entity<T> entity = EntityParser.of(entityInstance).parse().result();
         List<Entity.Field> updatableFieldList = entity.getUpdatableFields();
         List<Entity.Field> pkList = entity.getPks();
         if (updatableFieldList.size() == 0
@@ -248,12 +345,12 @@ public class SqlSession {
         return Database.update(dataSource, sql.toString(), fieldValueList);
     }
 
-    public <T extends Storable> int update(T logEntity, CombinedExpression condition) {
-        if (logEntity == null) {
+    public <T extends Storable> int update(T entityInstance, CombinedExpression condition) {
+        if (entityInstance == null) {
             return 0;
         }
 
-        Entity<T> entity = EntityParser.of(logEntity).parse().result();
+        Entity<T> entity = EntityParser.of(entityInstance).parse().result();
         List<Entity.Field> updatableFieldList = entity.getUpdatableFields();
         if (updatableFieldList.size() == 0) {
             return 0;
@@ -283,11 +380,11 @@ public class SqlSession {
         return Database.update(dataSource, sql.toString(), fieldValueList);
     }
 
-    public <T extends Storable> int deleteByPK(T logEntity) {
-        if (logEntity == null) {
+    public <T extends Storable> int deleteByPK(T entityInstance) {
+        if (entityInstance == null) {
             return 0;
         }
-        Entity<T> entity = EntityParser.of(logEntity).parse().result();
+        Entity<T> entity = EntityParser.of(entityInstance).parse().result();
         List<Entity.Field> pkList = entity.getPks();
         if (pkList.isEmpty()) {
             return 0;
